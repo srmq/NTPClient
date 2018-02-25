@@ -3,12 +3,16 @@
 #include "Arduino.h"
 
 #include <Udp.h>
+#include <functional>
 
 #define SEVENZYYEARS 2208988800UL
 #define NTP_PACKET_SIZE 48
 #define NTP_DEFAULT_LOCAL_PORT 1337
 
 class NTPClient {
+  public:
+    typedef std::function<void(unsigned long)> DelayHandlerFunction;
+    
   private:
     UDP*          _udp;
     bool          _udpSetup       = false;
@@ -25,6 +29,8 @@ class NTPClient {
     byte          _packetBuffer[NTP_PACKET_SIZE];
 
     void          sendNTPPacket();
+    
+    DelayHandlerFunction _myDelay = delay;
 
   public:
     NTPClient(UDP& udp);
@@ -42,6 +48,14 @@ class NTPClient {
      * Starts the underlying UDP client with the specified local port
      */
     void begin(int port);
+    
+    /**
+     * This informs if the time should be updated through NTP given the configured updateInterval
+     * and current time.
+     * 
+     * @return true if an update should be done, false otherwise.
+     */
+    bool shouldUpdate();
 
     /**
      * This should be called in the main loop of your application. By default an update from the NTP Server is only
@@ -88,4 +102,9 @@ class NTPClient {
      * Stops the underlying UDP client
      */
     void end();
+    
+    /**
+     * Set custom delay function
+     */
+    void setDelayFunction(DelayHandlerFunction delayFunction);
 };

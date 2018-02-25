@@ -70,14 +70,17 @@ bool NTPClient::forceUpdate() {
   // Wait till data is there or timeout...
   byte timeout = 0;
   int cb = 0;
+  unsigned long realDelay = 0;
   do {
-    delay ( 10 );
+    const unsigned long beforeDelay = millis();
+    _myDelay ( 10 );
     cb = this->_udp->parsePacket();
     if (timeout > 100) return false; // timeout after 1000 ms
     timeout++;
+    realDelay += millis() - beforeDelay;
   } while (cb == 0);
 
-  this->_lastUpdate = millis() - (10 * (timeout + 1)); // Account for delay in reading the time
+  this->_lastUpdate = millis() - realDelay; // Account for delay in reading the time
 
   this->_udp->read(this->_packetBuffer, NTP_PACKET_SIZE);
 
@@ -92,9 +95,12 @@ bool NTPClient::forceUpdate() {
   return true;
 }
 
+bool NTPClient::shouldUpdate() {
+    return ((millis() - this->_lastUpdate) >= this->_updateInterval)|| (this->_lastUpdate == 0);
+}
+
 bool NTPClient::update() {
-  if ((millis() - this->_lastUpdate >= this->_updateInterval)     // Update after _updateInterval
-    || this->_lastUpdate == 0) {                                // Update if there was no update yet.
+  if (shouldUpdate()) {      // Update if there was no update yet or updateInterval is achieved
     if (!this->_udpSetup) this->begin();                         // setup the UDP client if needed
     return this->forceUpdate();
   }
@@ -168,4 +174,8 @@ void NTPClient::sendNTPPacket() {
   this->_udp->beginPacket(this->_poolServerName, 123); //NTP requests are to port 123
   this->_udp->write(this->_packetBuffer, NTP_PACKET_SIZE);
   this->_udp->endPacket();
+}
+
+void NTPClient::setDelayFunction(DelayHandlerFunction delayFunction) {
+  this->_myDelay = delayFunction;
 }
